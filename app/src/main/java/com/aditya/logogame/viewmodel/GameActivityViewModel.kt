@@ -3,8 +3,10 @@ package com.aditya.logogame.viewmodel
 import android.content.Context
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.aditya.logogame.models.ButtonItem
 import com.aditya.logogame.models.Logo
 import com.aditya.logogame.repository.LogoRepository
+import com.aditya.logogame.utils.StringUtils
 
 /**
  * ViewModel for [GameActivity]
@@ -12,58 +14,104 @@ import com.aditya.logogame.repository.LogoRepository
 class GameActivityViewModel: ViewModel() {
 
     private var logoList = emptyList<Logo>()
+    val answerButtonList = MutableLiveData<List<ButtonItem>>()
+    val suggestedButtonList = MutableLiveData<List<ButtonItem>>()
     val logoItem =  MutableLiveData<Logo>()
-    val counter = MutableLiveData<Int>()
-    val randomChars = MutableLiveData<List<Char>>()
+    val logoIndex = MutableLiveData<Int>()
     val isFinished = MutableLiveData<Boolean>()
-    val score = MutableLiveData<Int>()
 
     /**
      * Retrieves the list of logos and set the counter to 0
      */
     fun startGame(context: Context) {
         logoList = LogoRepository().getLogos(context)
-        counter.value = 0
+        logoIndex.value = 0
+    }
+
+    /**
+     * initialize new logo view with default buttons
+     */
+    fun initLogoView(logo: Logo) {
+        answerButtonList.value = getDefaultAnswerButtons(logo)
+        suggestedButtonList.value = getSuggestionButtons(logo)
     }
 
     /**
      * Validates if provided input is correct or not
      * Proceeds to next counter if input is correct
      */
-    fun validateAndProceed(name:String): Boolean {
-        if (name.contentEquals(logoItem.value?.name)) {
-            counter.value = counter.value?.plus(1)
-            score.value = score.value?.plus(100)
-            return true
+    private fun validateAndProceed() {
+        if (getAnswerString().contentEquals(logoItem.value?.name)) {
+            logoIndex.value = logoIndex.value?.plus(1)
+        } else {
+            initLogoView(logoItem.value!!)
         }
-        return false
     }
 
     /**
-     * Refresh the Buttons with new set of random characters
+     * @return answer string
      */
-    fun refreshButtons(logo: Logo) {
-        randomChars.value =  getRandomChar(logo)
+    private fun getAnswerString() : String {
+        var inputAns = StringUtils.EMPTY_STRING
+        answerButtonList.value?.forEach{
+            inputAns = inputAns.plus(it.value)
+        }
+        return inputAns
     }
 
     /**
      * Get random char list with the input mixed with it
      * so that input is always there in buttons
      */
-    private fun getRandomChar(logo: Logo): List<Char> {
-        val charList = emptyList<Char>().toMutableList()
+    private fun getSuggestionButtons(logo: Logo): List<ButtonItem> {
+        val buttonList = emptyList<ButtonItem>().toMutableList()
         logo.name.toCharArray().forEach {
-            charList.add(it)
+            buttonList.add(ButtonItem(it.toString(), true))
         }
 
-        val restItem = 10 - logo.name.length
-
-        for (i in 1..restItem) {
+        for (i in 1..logo.name.length) {
             val random = (0..25).random()
-            charList.add((random.plus(65)).toChar())
+            buttonList.add(ButtonItem(random.plus(65).toChar().toString(), true))
         }
 
-        return charList.shuffled()
+        return buttonList.shuffled()
+    }
+
+    /**
+     * @return default answer button list
+     */
+    private fun getDefaultAnswerButtons(logo: Logo): List<ButtonItem> {
+        val buttonList = emptyList<ButtonItem>().toMutableList()
+        logo.name.toCharArray().forEach { _ ->
+            buttonList.add(ButtonItem(StringUtils.DEFAULT_ANSWER_CHAR, false))
+        }
+        answerButtonList.value = buttonList
+        return buttonList
+    }
+
+    /**
+     * Updates Input Buttons
+     */
+    fun updateAnswerButtons(buttonItem: ButtonItem) {
+        var answerString = ""
+        answerButtonList.value?.forEach{
+           answerString = answerString.plus(it.value)
+        }
+
+        val position = answerString.indexOf(StringUtils.DEFAULT_ANSWER_CHAR)
+        answerString = answerString.substring(0, position) + buttonItem.value + answerString.substring(position + 1)
+
+
+        val buttonList = emptyList<ButtonItem>().toMutableList()
+        answerString.toCharArray().forEach {
+            buttonList.add(ButtonItem(it.toString(), false))
+        }
+        answerButtonList.value = buttonList
+
+        val nextPosition = answerString.indexOf(StringUtils.DEFAULT_ANSWER_CHAR)
+        if (nextPosition == -1) {
+            validateAndProceed()
+        }
     }
 
     /**

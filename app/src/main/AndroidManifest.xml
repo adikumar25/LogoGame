@@ -10,6 +10,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.LogoGame"
+        android:usesCleartextTraffic="true"
         android:fullBackupContent="true">
         <activity
             android:name=".activity.GameActivity"
